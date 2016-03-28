@@ -14,8 +14,13 @@ var media = {
   splitLength: 5,
   splitPositions: [],
   
+  blockLength: {
+    width: 10,
+    height: 5
+  },
+  
   sampleWaitTime: 100,
-  sampleShots: []
+  sampleShots: {}
 };
 
 function loadMedia( src ){
@@ -69,6 +74,7 @@ function takeSampleShot( m, listener ){
   var s = m.sampleShots;
   var dom = m.dom;
   var l = m.splitLength;
+  var b = m.blockLength;
   var i = 0;
 
   //Create canvas for take shot
@@ -79,12 +85,23 @@ function takeSampleShot( m, listener ){
   
   dom.play();
   
+  s.original = [];
+  s.minify = [];
+  
   (function(){
     var f = arguments.callee;
     dom.currentTime = p[i];
     setTimeout( function(){
+      
+      ctx.drawImage( dom, 0, 0, 1, 1 ); //to avoid issue( the first frame does not be captured )
       ctx.drawImage( dom, 0, 0, m.width, m.height );
-      s.push( ctx.getImageData( 0, 0, m.width, m.height ) );
+      s.original.push( ctx.getImageData( 0, 0, m.width, m.height ) );
+      
+      ctx.drawImage( dom, 0, 0, m.width, m.height, 0, 0, b.width, b.height );
+      s.minify.push( ctx.getImageData( 0, 0, b.width, b.height ) );
+      
+      //Capture check code
+      //var im = document.createElement('img');im.src = cnv.toDataURL('image/jpg');document.body.appendChild(im);
       
       i++;
       
@@ -102,10 +119,11 @@ function takeSampleShot( m, listener ){
 }
 
 //Analyze
-function analyzeSample( m ){try{alert();
+function analyzeSample( m ){try{
   var worker = new Worker( "analyzer.js" );
   worker.addEventListener( "message", handleResult );
-  worker.postMessage( JSON.stringify( m ) );
+  
+  worker.postMessage( m.sampleShots.minify );
   
   function handleResult( e ){
     alert( e.data );
