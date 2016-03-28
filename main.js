@@ -11,16 +11,18 @@ var media = {
   width: 0,
   height: 0,
   
-  splitLength: 5,
+  splitLength: 20,
   splitPositions: [],
   
   blockLength: {
-    width: 10,
-    height: 5
+    width: 20,
+    height: 20
   },
   
-  sampleWaitTime: 100,
-  sampleShots: {}
+  sampleWaitTime: 1000,
+  sampleShots: {},
+  
+  resultMap: []
 };
 
 function loadMedia( src ){
@@ -35,6 +37,9 @@ function loadMedia( src ){
 
 //Start process
 function start( m ){
+  
+  setProgress( 'Preparing...', 0 );
+  
   var mp = dom.mediaPlayer;
   mp.volume = 0;
   mp.play();
@@ -48,7 +53,12 @@ function start( m ){
     
     calcSplitPosition( m );
     takeSampleShot( m, function(){
-      analyzeSample( m );
+      analyzeSample( m, function(){
+        setProgress( "Rendering result...", 0 );
+        setTimeout(function(){
+          renderResult( m );
+        }, 10 );
+      } );
     } );
     
   }, 3000 );
@@ -83,6 +93,7 @@ function takeSampleShot( m, listener ){
   cnv.height = m.height;
   var ctx = cnv.getContext( '2d' );
   
+  dom.currentTime = 0;
   dom.play();
   
   s.original = [];
@@ -91,6 +102,10 @@ function takeSampleShot( m, listener ){
   (function(){
     var f = arguments.callee;
     dom.currentTime = p[i];
+    dom.play();
+    setTimeout( function(){
+      dom.pause();
+    }, w/2 );
     setTimeout( function(){
       
       ctx.drawImage( dom, 0, 0, 1, 1 ); //to avoid issue( the first frame does not be captured )
@@ -114,20 +129,104 @@ function takeSampleShot( m, listener ){
       
     }, w );
     
+    setProgress( 'Capturing frame shot...', i / l );
+    
   })();
   
 }
 
 //Analyze
-function analyzeSample( m ){try{
+function analyzeSample( m, listener ){
   var worker = new Worker( "analyzer.js" );
   worker.addEventListener( "message", handleResult );
   
   worker.postMessage( m.sampleShots.minify );
   
   function handleResult( e ){
-    alert( e.data );
-  }}catch(e){alert(e.message);}
+    if( e.data.status == 2 ){
+      
+      m.resultMap = e.data.result;
+      listener();
+      
+    }else if( e.data.status == 1 ){
+      
+      setProgress( "Analyzing frames...", e.data.prog );
+      
+    }
+  }
+}
+
+//Build and render result
+function renderResult( m ){
+  var map = m.resultMap;
+  var s = m.sampleShots;
+  
+  var bw = m.width / m.blockLength.width;
+  var bh = m.height / m.blockLength.height;
+  
+  var cnv = document.createElement( "canvas" );
+  cnv.width = m.width;
+  cnv.height = m.height;
+  var ctx = cnv.getContext( "2d" );
+  
+  var resultDom = document.createElement( "img" );
+  resultDom.style.width = "100%";
+  document.body.appendChild( resultDom );
+
+  //Clip temp canvas
+  var tcnv = document.createElement( "canvas" );
+  tcnv.width = m.width;
+  tcnv.height = m.height;
+  var tctx = tcnv.getContext( "2d" );
+  
+  var an = [];
+  var rendered = 0;
+  var frameLength = m.blockLength.width * m.blockLength.height;
+  var i = 0;
+  
+  (function(){
+    var f = arguments.callee;
+    
+    tctx.putImageData( s.original[i], 0, 0 );
+    
+    //Test code; list samples
+    listSample( tcnv );
+    
+    an.push(map[i].length);
+    
+    //for( var j = 0; j < map[i].length; j++ ){
+    var j = 0;
+    (function(){
+      var x = map[i][j] % m.blockLength.width;
+      var y = Math.floor( map[i][j] / m.blockLength.width );
+      
+      ctx.drawImage( tcnv, x*bw, y*bh, bw, bh, x*bw, y*bh, bw, bh );
+    //}
+      j++;
+      rendered++;
+      if( j < map[i].length ){
+        setTimeout( arguments.callee, 10 );
+        setProgress( "Rendering result...", rendered / frameLength );
+        
+      }else{
+        i++;
+        if( i < map.length ){
+          setTimeout( f, 10 );
+          
+        }else{
+          resultDom.src = cnv.toDataURL( "image/png" );
+          alert(an);
+        }
+      }
+    })();
+  })(); 
+}
+
+function listSample( cnv ){
+  var im = document.createElement( 'img' );
+  im.src = cnv.toDataURL();
+  im.width = 200;
+  document.body.appendChild( im );
 }
 
 //Test code

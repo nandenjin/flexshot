@@ -17,9 +17,43 @@
       }
       
       #media-container{
-        
+        display: none;
       }
       
+      #progress-box{
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        
+        width: 300px;
+        height: 150px;
+        margin: auto;
+        
+        color: #000;
+        background-color: #fff;
+      }
+      
+      #progress-msg{
+        margin: 50px 20px;
+        font: normal 14px sans-serif;
+        text-align: center;
+      }
+      
+      #progress-bar{
+        height: 5px;
+        margin: 50px 30px;
+        padding: 0;
+        background-color: #ccc;
+      }
+      
+      #progress-color{
+        width: 0%;
+        height: 100%;
+        margin: 0;
+        background-color: #0bf;
+      }
       
     </style>
   </head>
@@ -27,6 +61,14 @@
     <div id="media-container">
     </div>
     <button onclick="handleStart()">Start</button>
+    
+    <div id="progress-box">
+      <div id="progress-msg"></div>
+      <div id="progress-bar">
+        <div id="progress-color"></div>
+      </div>
+    </div>
+    
     <script>
       function elm( id ){
         return document.getElementById( id );
