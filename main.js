@@ -11,12 +11,12 @@ var media = {
   width: 0,
   height: 0,
   
-  splitLength: 20,
+  splitLength: 50,
   splitPositions: [],
   
   blockLength: {
-    width: 20,
-    height: 20
+    width: 40,
+    height: 40
   },
   
   sampleWaitTime: 1000,
@@ -190,7 +190,7 @@ function renderResult( m ){
     tctx.putImageData( s.original[i], 0, 0 );
     
     //Test code; list samples
-    listSample( tcnv );
+    //listSample( tcnv );
     
     an.push(map[i].length);
     
