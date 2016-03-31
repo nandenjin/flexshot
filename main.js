@@ -11,18 +11,18 @@ var media = {
   width: 0,
   height: 0,
   
-  splitLength: 50,
+  splitLength: 10,
   splitPositions: [],
   
   blockLength: {
-    width: 40,
-    height: 40
+    width: 960,
+    height: 540
   },
   
   sampleWaitTime: 1000,
-  sampleShots: {},
+  sampleShots: [],
   
-  resultMap: []
+  result: null
 };
 
 function loadMedia( src ){
@@ -46,6 +46,7 @@ function start( m ){
   
   m.dom = mp;
   
+  //Wait for media loading
   setTimeout( function(){
     m.duration = mp.duration;
     m.width = mp.videoWidth;
@@ -54,10 +55,7 @@ function start( m ){
     calcSplitPosition( m );
     takeSampleShot( m, function(){
       analyzeSample( m, function(){
-        setProgress( "Rendering result...", 0 );
-        setTimeout(function(){
-          renderResult( m );
-        }, 10 );
+        renderResult( m );
       } );
     } );
     
@@ -93,35 +91,32 @@ function takeSampleShot( m, listener ){
   cnv.height = m.height;
   var ctx = cnv.getContext( '2d' );
   
+  //Seek media to zero
   dom.currentTime = 0;
-  dom.play();
-  
-  s.original = [];
-  s.minify = [];
   
   (function(){
     var f = arguments.callee;
     dom.currentTime = p[i];
     dom.play();
     setTimeout( function(){
-      dom.pause();
+      //dom.pause();
     }, w/2 );
     setTimeout( function(){
       
-      ctx.drawImage( dom, 0, 0, 1, 1 ); //to avoid issue( the first frame does not be captured )
+      //to avoid issue( the first frame does not be captured ), render additional one frame
+      ctx.drawImage( dom, 0, 0, 1, 1 );
+      
+      //Render frame on canvas and capture it
       ctx.drawImage( dom, 0, 0, m.width, m.height );
-      s.original.push( ctx.getImageData( 0, 0, m.width, m.height ) );
-      
-      ctx.drawImage( dom, 0, 0, m.width, m.height, 0, 0, b.width, b.height );
-      s.minify.push( ctx.getImageData( 0, 0, b.width, b.height ) );
-      
-      //Capture check code
-      //var im = document.createElement('img');im.src = cnv.toDataURL('image/jpg');document.body.appendChild(im);
+      s.push( ctx.getImageData( 0, 0, m.width, m.height ) );
       
       i++;
       
+      //Repeat phase (use timer not to block browser content rendering)
       if( i < l ){
         setTimeout( f, 10 );
+      
+      //Move to netxt phase
       }else{
         dom.pause();
         listener( m );
@@ -129,6 +124,7 @@ function takeSampleShot( m, listener ){
       
     }, w );
     
+    //Show progress
     setProgress( 'Capturing frame shot...', i / l );
     
   })();
@@ -137,97 +133,55 @@ function takeSampleShot( m, listener ){
 
 //Analyze
 function analyzeSample( m, listener ){
+  var s = m.sampleShots;
+  var samples = [];
+  
+  //Craate sample data
+  for( var i = 0; i < s.length; i++ ){
+    samples.push( s[i].data );
+  }
+  
+  //Create worker and send data
   var worker = new Worker( "analyzer.js" );
   worker.addEventListener( "message", handleResult );
   
-  worker.postMessage( m.sampleShots.minify );
+  worker.postMessage({
+    width: m.width,
+    height: m.height,
+    blockLength: m.blockLength,
+    sample: samples
+  });
   
   function handleResult( e ){
+    //Get the result
     if( e.data.status == 2 ){
-      
-      m.resultMap = e.data.result;
+      m.result = e.data.result;
+
       listener();
-      
+    
+    //Show progress
     }else if( e.data.status == 1 ){
-      
-      setProgress( "Analyzing frames...", e.data.prog );
+      setProgress( e.data.msg, e.data.prog );
       
     }
   }
 }
 
-//Build and render result
+//Render result on browser
 function renderResult( m ){
-  var map = m.resultMap;
-  var s = m.sampleShots;
-  
-  var bw = m.width / m.blockLength.width;
-  var bh = m.height / m.blockLength.height;
-  
-  var cnv = document.createElement( "canvas" );
-  cnv.width = m.width;
-  cnv.height = m.height;
-  var ctx = cnv.getContext( "2d" );
-  
-  var resultDom = document.createElement( "img" );
-  resultDom.style.width = "100%";
-  document.body.appendChild( resultDom );
-
-  //Clip temp canvas
-  var tcnv = document.createElement( "canvas" );
-  tcnv.width = m.width;
-  tcnv.height = m.height;
-  var tctx = tcnv.getContext( "2d" );
-  
-  var an = [];
-  var rendered = 0;
-  var frameLength = m.blockLength.width * m.blockLength.height;
-  var i = 0;
-  
-  (function(){
-    var f = arguments.callee;
-    
-    tctx.putImageData( s.original[i], 0, 0 );
-    
-    //Test code; list samples
-    //listSample( tcnv );
-    
-    an.push(map[i].length);
-    
-    //for( var j = 0; j < map[i].length; j++ ){
-    var j = 0;
-    (function(){
-      var x = map[i][j] % m.blockLength.width;
-      var y = Math.floor( map[i][j] / m.blockLength.width );
-      
-      ctx.drawImage( tcnv, x*bw, y*bh, bw, bh, x*bw, y*bh, bw, bh );
-    //}
-      j++;
-      rendered++;
-      if( j < map[i].length ){
-        setTimeout( arguments.callee, 10 );
-        setProgress( "Rendering result...", rendered / frameLength );
-        
-      }else{
-        i++;
-        if( i < map.length ){
-          setTimeout( f, 10 );
-          
-        }else{
-          resultDom.src = cnv.toDataURL( "image/png" );
-          alert(an);
-        }
-      }
-    })();
-  })(); 
+  var c = document.createElement( "canvas" );
+  c.width = m.width;
+  c.height = m.height;
+  var x = c.getContext('2d');
+  var i = x.createImageData(m.width,m.height);
+  i.data.set(m.result);
+  x.putImageData(i,0,0);
+  var im = document.createElement('img');
+  im.src = c.toDataURL();
+  im.style.border="1px solid red";
+  document.body.appendChild(im);
 }
 
-function listSample( cnv ){
-  var im = document.createElement( 'img' );
-  im.src = cnv.toDataURL();
-  im.width = 200;
-  document.body.appendChild( im );
-}
 
 //Test code
 
