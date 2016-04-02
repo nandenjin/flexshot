@@ -19,6 +19,8 @@ var media = {
     height: 540
   },
   
+  striction: 5,
+  
   sampleWaitTime: 1000,
   sampleShots: [],
   
@@ -40,13 +42,16 @@ function start( m ){
   
   setProgress( 'Preparing...', 0 );
   
+  /*
   var mp = dom.mediaPlayer;
   mp.volume = 0;
   mp.play();
   
   m.dom = mp;
+  */
   
   //Wait for media loading
+  /*
   setTimeout( function(){
     m.duration = mp.duration;
     m.width = mp.videoWidth;
@@ -60,7 +65,12 @@ function start( m ){
     } );
     
   }, 3000 );
-  
+  */
+  try{
+  //
+  analyzeSample( m, function(){
+    renderResult( m );
+  } );}catch(e){alert(e.message);}
 }
 
 //Calc split position from media config
@@ -138,7 +148,7 @@ function analyzeSample( m, listener ){
   
   //Craate sample data
   for( var i = 0; i < s.length; i++ ){
-    samples.push( s[i].data );
+    samples.push( s[i] );
   }
   
   //Create worker and send data
@@ -149,6 +159,7 @@ function analyzeSample( m, listener ){
     width: m.width,
     height: m.height,
     blockLength: m.blockLength,
+    striction: m.striction,
     sample: samples
   });
   
@@ -169,6 +180,8 @@ function analyzeSample( m, listener ){
 
 //Render result on browser
 function renderResult( m ){
+  setProgress( "Please wait...", 0 );
+  
   var c = document.createElement( "canvas" );
   c.width = m.width;
   c.height = m.height;
@@ -176,17 +189,6 @@ function renderResult( m ){
   var i = x.createImageData(m.width,m.height);
   i.data.set(m.result);
   x.putImageData(i,0,0);
-  var im = document.createElement('img');
-  im.src = c.toDataURL();
-  im.style.border="1px solid red";
-  document.body.appendChild(im);
+  
+  handleAnalyzerResult( c.toDataURL() );
 }
-
-
-//Test code
-
-function initTest(){
-  loadMedia( "sample.webm" );
-}
-
-window.addEventListener( "load", initTest );

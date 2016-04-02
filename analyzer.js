@@ -3,8 +3,9 @@ function start( e ){
   var w = e.data.width;
   var h = e.data.height;
   var samples = e.data.sample;
-  var bw = e.data.blockLength.width;
-  var bh = e.data.blockLength.height;
+  var bw = e.data.blockLength.width || 10;
+  var bh = e.data.blockLength.height || 10;
+  var striction = e.data.striction || 5;
   
   //Resize
   var resizedSamples = [];
@@ -20,7 +21,7 @@ function start( e ){
   }
   
   //Analyze
-  var analyzed = analyze( resizedSamples );
+  var analyzed = analyze( resizedSamples, striction );
   
   //Render
   var rendered = render({
@@ -81,7 +82,7 @@ function resize( s, w, h, bw, bh, onProgress ){
   return result;
 }
 
-function analyze( s ){
+function analyze( s, striction ){
   var samples = s;
   var flags = [];
   var referTo = [];
@@ -89,7 +90,7 @@ function analyze( s ){
   
   var pixelLength = samples[0].length / 4;
   
-  var range = 1;
+  var range = striction;
   
   for( var i = 0; i < samples.length; i++ ){
     flags[i] = [];
