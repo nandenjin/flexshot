@@ -6,6 +6,7 @@ function start( e ){
   var bw = e.data.blockLength.width || 10;
   var bh = e.data.blockLength.height || 10;
   var striction = e.data.striction || 5;
+  var rm = e.data.renderMode || 0;
   
   //Resize
   var resizedSamples = [];
@@ -27,7 +28,8 @@ function start( e ){
   var rendered = render({
     samples: samples,
     analyzerResult: analyzed.result,
-    referMap: analyzed.referMap
+    referMap: analyzed.referMap,
+    renderMode: rm
   }, w, h, bw, bh );
   
   //Return result
@@ -149,7 +151,7 @@ function analyze( s, striction ){
       }
     }
     
-    if( Math.floor( k / pixelLength * 100 ) % 10 == 0 ){
+    if( k % Math.round( pixelLength / 100 ) == 0 ){
       sendProgress( "Analyzing...", k / pixelLength );
     }
     
@@ -174,8 +176,9 @@ function analyze( s, striction ){
 
 function render( data, w, h, bw, bh ){
   var s = data.samples;
-  var m = data.pixelMapList;
+  var r = data.referMap;
   var a = data.analyzerResult;
+  var rm = data.renderMode;
   
   var result = new Uint8ClampedArray( w * h * 4 );
   
@@ -184,15 +187,44 @@ function render( data, w, h, bw, bh ){
     
     for( var j = 0; j < w; j++ ){
       var bx = Math.floor( j / ( w / bw ) );
-      var fi = a[by*bw+bx];
+      var bi = by * bw + bx;
+      var fi = a[bi];
       var index = ( i * w + j ) * 4;
-      result[index+0] = s[fi][index+0];
-      result[index+1] = s[fi][index+1];
-      result[index+2] = s[fi][index+2];
-      result[index+3] = s[fi][index+3];
+      
+      //RenderMode = default
+      if( rm === 1 ){
+        var blt = [ 0, 0, 0, 0 ];
+        var blc = 0;
+        
+        for( var k = 0; k < r.length; k++ ){
+          if( k == fi || r[k][bi] == fi ){
+            blt[0] += s[k][index+0];
+            blt[1] += s[k][index+1];
+            blt[2] += s[k][index+2];
+            blt[3] += s[k][index+3];
+            blc++;
+          }
+        }
+        
+        result[index+0] = blt[0] / blc;
+        result[index+1] = blt[1] / blc;
+        result[index+2] = blt[2] / blc;
+        result[index+3] = blt[3] / blc;
+        
+      //renderMode = blend
+      }else{
+        result[index+0] = s[fi][index+0];
+        result[index+1] = s[fi][index+1];
+        result[index+2] = s[fi][index+2];
+        result[index+3] = s[fi][index+3];
+        
+      }
       
     }
-    sendProgress("Rendering...",i/h);
+    
+    if( i % Math.round( h / 100 ) == 0 ){
+      sendProgress( "Rendering...", i / h );
+    }
     
   }
   

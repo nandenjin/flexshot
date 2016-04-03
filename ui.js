@@ -81,6 +81,13 @@ function handleStartButton( e ){
   st = Math.max( 1, Math.min( 255, st ) );
   m.striction = st;
   
+  var renderMode = 0;
+  if( elm( "config-rm-blend" ).checked ){
+    renderMode = 1;
+  }
+  
+  m.renderMode = renderMode;
+  
   m.sampleShots = tmpCapturePoints;
   
   ui.dom.view.config.style.display = "none";

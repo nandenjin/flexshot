@@ -66,11 +66,11 @@ function start( m ){
     
   }, 3000 );
   */
-  try{
+  
   //
   analyzeSample( m, function(){
     renderResult( m );
-  } );}catch(e){alert(e.message);}
+  } );
 }
 
 //Calc split position from media config
@@ -160,7 +160,8 @@ function analyzeSample( m, listener ){
     height: m.height,
     blockLength: m.blockLength,
     striction: m.striction,
-    sample: samples
+    sample: samples,
+    renderMode: m.renderMode
   });
   
   function handleResult( e ){
